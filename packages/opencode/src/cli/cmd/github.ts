@@ -388,8 +388,8 @@ jobs:
     if: |
       contains(github.event.comment.body, ' /oc') ||
       startsWith(github.event.comment.body, '/oc') ||
-      contains(github.event.comment.body, ' /opencode') ||
-      startsWith(github.event.comment.body, '/opencode')
+      contains(github.event.comment.body, ' /tryaksh') ||
+      startsWith(github.event.comment.body, '/tryaksh')
     runs-on: ubuntu-latest
     permissions:
       id-token: write
@@ -402,8 +402,8 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Run opencode
-        uses: anomalyco/opencode/github@latest${envStr}
+      - name: Run Tryaksh
+        uses: tryaksh-innovations/tryaksh-cli/github@latest${envStr}
         with:
           model: ${provider}/${model}`,
           )

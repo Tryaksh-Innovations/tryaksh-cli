@@ -1,0 +1,30 @@
+diff --git a/version.d.mts b/version.d.mts
+new file mode 100644
+index 0000000000000000000000000000000000000000..26d8f5df06d2b2fd09b3b9703f5a94d2015e23b9
+--- /dev/null
++++ b/version.d.mts
+@@ -0,0 +1 @@
++export declare const VERSION = "6.34.0";
+diff --git a/version.d.ts b/version.d.ts
+new file mode 100644
+index 0000000000000000000000000000000000000000..26d8f5df06d2b2fd09b3b9703f5a94d2015e23b9
+--- /dev/null
++++ b/version.d.ts
+@@ -0,0 +1 @@
++export declare const VERSION = "6.34.0";
+diff --git a/version.js b/version.js
+new file mode 100644
+index 0000000000000000000000000000000000000000..b842e4c701f20dbcc753202419f54d04efea69b2
+--- /dev/null
++++ b/version.js
+@@ -0,0 +1,3 @@
++"use strict";
++Object.defineProperty(exports, "__esModule", { value: true });
++exports.VERSION = "6.34.0";
+diff --git a/version.mjs b/version.mjs
+new file mode 100644
+index 0000000000000000000000000000000000000000..a581cc1d0ae5875a62a012a5ba898bec2870dd01
+--- /dev/null
++++ b/version.mjs
+@@ -0,0 +1 @@
++export const VERSION = "6.34.0";

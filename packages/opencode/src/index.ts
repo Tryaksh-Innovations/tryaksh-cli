@@ -30,8 +30,6 @@ import { WebCommand } from "./cli/cmd/web"
 import { PrCommand } from "./cli/cmd/pr"
 import { SessionCommand } from "./cli/cmd/session"
 import { DbCommand } from "./cli/cmd/db"
-import path from "path"
-import { Global } from "@opencode-ai/core/global"
 import { JsonMigration } from "@/storage/json-migration"
 import { Database } from "@/storage/db"
 import { errorMessage } from "./util/error"
@@ -59,7 +57,7 @@ const args = hideBin(process.argv)
 
 function show(out: string) {
   const text = out.trimStart()
-  if (!text.startsWith("opencode ")) {
+  if (!text.startsWith("tryaksh ")) {
     process.stderr.write(UI.logo() + EOL + EOL)
     process.stderr.write(text)
     return
@@ -69,7 +67,7 @@ function show(out: string) {
 
 const cli = yargs(args)
   .parserConfiguration({ "populate--": true })
-  .scriptName("opencode")
+  .scriptName("tryaksh")
   .wrap(100)
   .help("help", "show help")
   .alias("help", "h")
@@ -90,6 +88,7 @@ const cli = yargs(args)
   })
   .middleware(async (opts) => {
     if (opts.pure) {
+      process.env.TRYAKSH_PURE = "1"
       process.env.OPENCODE_PURE = "1"
     }
 
@@ -106,17 +105,25 @@ const cli = yargs(args)
     Heap.start()
 
     process.env.AGENT = "1"
+    process.env.TRYAKSH = "1"
+    process.env.TRYAKSH_PID = String(process.pid)
+    if (process.env.TRYAKSH_SERVER_PASSWORD && !process.env.OPENCODE_SERVER_PASSWORD) {
+      process.env.OPENCODE_SERVER_PASSWORD = process.env.TRYAKSH_SERVER_PASSWORD
+    }
+    if (process.env.TRYAKSH_SERVER_USERNAME && !process.env.OPENCODE_SERVER_USERNAME) {
+      process.env.OPENCODE_SERVER_USERNAME = process.env.TRYAKSH_SERVER_USERNAME
+    }
     process.env.OPENCODE = "1"
     process.env.OPENCODE_PID = String(process.pid)
 
-    Log.Default.info("opencode", {
+    Log.Default.info("tryaksh", {
       version: InstallationVersion,
       args: process.argv.slice(2),
       process_role: processMetadata.processRole,
       run_id: processMetadata.runID,
     })
 
-    const marker = path.join(Global.Path.data, "opencode.db")
+    const marker = Database.Path
     if (!(await Filesystem.exists(marker))) {
       const tty = process.stderr.isTTY
       process.stderr.write("Performing one time database migration, may take a few minutes..." + EOL)
