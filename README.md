@@ -2,7 +2,7 @@
 
 AI-powered development tool by Tryaksh Innovations.
 
-Tryaksh CLI is a branded OpenCode-based command-line coding assistant. The current agenda is to provide the team with a local, source-runnable CLI named `tryaksh`, keep provider/auth behavior from the upstream engine, and separate Tryaksh install/data paths from a developer's existing OpenCode setup.
+Tryaksh CLI is a team-ready command-line coding assistant. The current agenda is to provide the team with a local, source-runnable CLI named `tryaksh`, keep the proven provider/auth behavior from the upstream engine, and separate Tryaksh install/data paths from any other coding assistant setup.
 
 ## Quick Start For Team Members
 
@@ -21,14 +21,7 @@ bun install
 bun run tryaksh --help
 ```
 
-Run inside any project:
-
-```bash
-cd path/to/project
-bun run /path/to/tryaksh-cli/packages/opencode/src/index.ts --help
-```
-
-For a linked local command:
+Recommended local setup:
 
 ```bash
 cd packages/opencode
@@ -36,7 +29,16 @@ npm link
 tryaksh --help
 ```
 
+Run inside any project after linking:
+
+```bash
+cd path/to/project
+tryaksh
+```
+
 The linked `tryaksh` command falls back to the source entrypoint when no compiled release binary is installed, so it is usable during development.
+
+After pulling updates, fully restart `tryaksh` and start a fresh session with `/new` so the latest identity and branding prompts are loaded.
 
 ## Install Script
 
@@ -58,7 +60,7 @@ If the repository is hosted under a different owner/name, set:
 TRYAKSH_GITHUB_REPO=owner/repo ./install
 ```
 
-The installer uses `TRYAKSH_INSTALL_DIR` first, then `OPENCODE_INSTALL_DIR` for backward compatibility, then `$HOME/.tryaksh/bin`.
+The installer uses `TRYAKSH_INSTALL_DIR` first, then the legacy install-dir variable for backward compatibility, then `$HOME/.tryaksh/bin`.
 
 ## Useful Commands
 
@@ -77,5 +79,5 @@ Do not run tests from the repository root. Package tests should be run from the 
 - The public command is `tryaksh`.
 - User-facing install/cache/data paths use `tryaksh` where this fork has been adapted.
 - Internal workspace package names such as `@opencode-ai/core` remain from upstream to avoid a risky monorepo-wide rename.
-- `TRYAKSH_*` environment variables are preferred for new Tryaksh-specific settings where added; selected `OPENCODE_*` variables remain supported for compatibility.
-- This project is based on OpenCode and keeps the upstream MIT license.
+- `TRYAKSH_*` environment variables are preferred for new Tryaksh-specific settings where added; selected legacy variables remain supported for compatibility.
+- This project keeps the upstream MIT license.
