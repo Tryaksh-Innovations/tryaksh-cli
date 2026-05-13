@@ -19,6 +19,12 @@ import { Effect, Option } from "effect"
 
 type PluginAuth = NonNullable<Hooks["auth"]>
 
+function providerDisplayName(provider: { id: string; name?: string }) {
+  if (provider.id === "opencode") return "Tryaksh Models"
+  if (provider.id === "opencode-go") return "Tryaksh Go"
+  return provider.name ?? provider.id
+}
+
 const promptValue = <Value>(value: Option.Option<Value>) => {
   if (Option.isNone(value)) return Effect.die(new UI.CancelledError())
   return Effect.succeed(value.value)
@@ -301,7 +307,7 @@ export const ProvidersLoginCommand = effectCmd({
   builder: (yargs) =>
     yargs
       .positional("url", {
-        describe: "opencode auth provider",
+        describe: "Tryaksh auth provider",
         type: "string",
       })
       .option("provider", {
@@ -390,7 +396,7 @@ export const ProvidersLoginCommand = effectCmd({
           (x) => x.name ?? x.id,
         ),
         map((x) => ({
-          label: x.name,
+          label: providerDisplayName(x),
           value: x.id,
           hint: {
             opencode: "recommended",
@@ -446,7 +452,7 @@ export const ProvidersLoginCommand = effectCmd({
       }
 
       yield* Prompt.log.warn(
-        `This only stores a credential for ${provider} - you will need configure it in opencode.json, check the docs for examples.`,
+        `This only stores a credential for ${provider} - configure it in tryaksh.json, check the README for examples.`,
       )
     }
 
@@ -455,13 +461,13 @@ export const ProvidersLoginCommand = effectCmd({
         "Amazon Bedrock authentication priority:\n" +
           "  1. Bearer token (AWS_BEARER_TOKEN_BEDROCK or /connect)\n" +
           "  2. AWS credential chain (profile, access keys, IAM roles, EKS IRSA)\n\n" +
-          "Configure via opencode.json options (profile, region, endpoint) or\n" +
+          "Configure via tryaksh.json options (profile, region, endpoint) or\n" +
           "AWS environment variables (AWS_PROFILE, AWS_REGION, AWS_ACCESS_KEY_ID, AWS_WEB_IDENTITY_TOKEN_FILE).",
       )
     }
 
     if (provider === "opencode") {
-      yield* Prompt.log.info("Create an api key at https://opencode.ai/auth")
+      yield* Prompt.log.info("Enter the Tryaksh Models API key provided to your team.")
     }
 
     if (provider === "vercel") {

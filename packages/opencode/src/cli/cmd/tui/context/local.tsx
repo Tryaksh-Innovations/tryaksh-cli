@@ -16,6 +16,12 @@ import { useSDK } from "./sdk"
 import { RGBA } from "@opentui/core"
 import { Filesystem } from "@/util/filesystem"
 
+function providerDisplayName(provider: { id: string; name?: string } | undefined, fallback: string) {
+  if (provider?.id === "opencode") return "Tryaksh Models"
+  if (provider?.id === "opencode-go") return "Tryaksh Go"
+  return provider?.name ?? fallback
+}
+
 export function parseModel(model: string) {
   const [providerID, ...rest] = model.split("/")
   return {
@@ -234,7 +240,7 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
           const provider = sync.data.provider.find((x) => x.id === value.providerID)
           const info = provider?.models[value.modelID]
           return {
-            provider: provider?.name ?? value.providerID,
+            provider: providerDisplayName(provider, value.providerID),
             model: info?.name ?? value.modelID,
             reasoning: info?.capabilities?.reasoning ?? false,
           }

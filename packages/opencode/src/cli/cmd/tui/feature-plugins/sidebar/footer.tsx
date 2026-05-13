@@ -37,21 +37,19 @@ function View(props: { api: TuiPluginApi }) {
           flexDirection="row"
           gap={1}
         >
-          <text flexShrink={0} fg={theme().text}>
-            ⬖
-          </text>
+          <text flexShrink={0} fg={theme().text}>*</text>
           <box flexGrow={1} gap={1}>
             <box flexDirection="row" justifyContent="space-between">
               <text fg={theme().text}>
                 <b>Getting started</b>
               </text>
               <text fg={theme().textMuted} onMouseDown={() => props.api.kv.set("dismissed_getting_started", true)}>
-                ✕
+                x
               </text>
             </box>
-            <text fg={theme().textMuted}>OpenCode includes free models so you can start immediately.</text>
+            <text fg={theme().textMuted}>Tryaksh includes starter models so you can begin immediately.</text>
             <text fg={theme().textMuted}>
-              Connect from 75+ providers to use other models, including Claude, GPT, Gemini etc
+              Connect from 75+ providers to use other models, including Claude, GPT, Gemini etc.
             </text>
             <box flexDirection="row" gap={1} justifyContent="space-between">
               <text fg={theme().text}>Connect provider</text>
@@ -65,9 +63,9 @@ function View(props: { api: TuiPluginApi }) {
         <span style={{ fg: theme().text }}>{path().name}</span>
       </text>
       <text fg={theme().textMuted}>
-        <span style={{ fg: theme().success }}>•</span> <b>Open</b>
+        <span style={{ fg: theme().success }}>*</span> <b>Try</b>
         <span style={{ fg: theme().text }}>
-          <b>Code</b>
+          <b>aksh</b>
         </span>{" "}
         <span>{props.api.app.version}</span>
       </text>

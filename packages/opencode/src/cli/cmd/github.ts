@@ -140,7 +140,7 @@ type IssueQueryResponse = {
 
 const AGENT_USERNAME = "opencode-agent[bot]"
 const AGENT_REACTION = "eyes"
-const WORKFLOW_FILE = ".github/workflows/opencode.yml"
+const WORKFLOW_FILE = ".github/workflows/tryaksh.yml"
 
 // Event categories for routing
 // USER_EVENTS: triggered by user actions, have actor/issueId, support reactions/comments
@@ -237,9 +237,9 @@ export const GithubInstallCommand = effectCmd({
               `    1. Commit the \`${WORKFLOW_FILE}\` file and push`,
               step2,
               "",
-              "    3. Go to a GitHub issue and comment `/oc summarize` to see the agent in action",
+              "    3. Go to a GitHub issue and comment `/tryaksh summarize` to see the agent in action",
               "",
-              "   Learn more about the GitHub agent - https://opencode.ai/docs/github/#usage-examples",
+              "   Learn more in the Tryaksh README - https://github.com/Tryaksh-Innovations/tryaksh-cli#readme",
             ].join("\n"),
           )
         }
@@ -375,7 +375,7 @@ export const GithubInstallCommand = effectCmd({
 
           await Filesystem.write(
             path.join(app.root, WORKFLOW_FILE),
-            `name: opencode
+            `name: tryaksh
 
 on:
   issue_comment:
@@ -384,10 +384,10 @@ on:
     types: [created]
 
 jobs:
-  opencode:
+  tryaksh:
     if: |
-      contains(github.event.comment.body, ' /oc') ||
-      startsWith(github.event.comment.body, '/oc') ||
+      contains(github.event.comment.body, ' /tk') ||
+      startsWith(github.event.comment.body, '/tk') ||
       contains(github.event.comment.body, ' /tryaksh') ||
       startsWith(github.event.comment.body, '/tryaksh')
     runs-on: ubuntu-latest
@@ -788,7 +788,7 @@ export const GithubRunCommand = effectCmd({
         }
 
         const reviewContext = getReviewCommentContext()
-        const mentions = (process.env["MENTIONS"] || "/opencode,/oc")
+        const mentions = (process.env["MENTIONS"] || "/tryaksh,/tk")
           .split(",")
           .map((m) => m.trim().toLowerCase())
           .filter(Boolean)
