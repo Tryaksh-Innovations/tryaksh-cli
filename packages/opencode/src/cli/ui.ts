@@ -1,12 +1,9 @@
 import { EOL } from "os"
 import { Schema } from "effect"
+import { logo as glyphs } from "./logo"
 
 const wordmark = [
-  "  TTTTT  RRRR   Y   Y   AAAAA  K   K   SSSS  H   H",
-  "    T    R   R   Y Y    A   A  K  K   S      H   H",
-  "    T    RRRR     Y     AAAAA  KKK     SSS   HHHHH",
-  "    T    R  R     Y     A   A  K  K       S  H   H",
-  "    T    R   R    Y     A   A  K   K  SSSS   H   H",
+  ...glyphs.left.map((line, index) => `${line} ${glyphs.right[index] ?? ""}`),
   "",
   "              Tryaksh CLI",
   "        AI coding assistant by Tryaksh Innovations",
