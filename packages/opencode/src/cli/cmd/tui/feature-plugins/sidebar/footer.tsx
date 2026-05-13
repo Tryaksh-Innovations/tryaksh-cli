@@ -5,6 +5,13 @@ import { Global } from "@opencode-ai/core/global"
 
 const id = "internal:sidebar-footer"
 
+function brandPath(value: string) {
+  return value
+    .replace(Global.Path.home, "~")
+    .replaceAll("\\", "/")
+    .replace(/\/packages\/opencode(?=\/|:|$)/g, "/packages/tryaksh")
+}
+
 function View(props: { api: TuiPluginApi }) {
   const theme = () => props.api.theme.current
   const has = createMemo(() =>
@@ -16,7 +23,7 @@ function View(props: { api: TuiPluginApi }) {
   const show = createMemo(() => !has() && !done())
   const path = createMemo(() => {
     const dir = props.api.state.path.directory || process.cwd()
-    const out = dir.replace(Global.Path.home, "~")
+    const out = brandPath(dir)
     const text = props.api.state.vcs?.branch ? out + ":" + props.api.state.vcs.branch : out
     const list = text.split("/")
     return {

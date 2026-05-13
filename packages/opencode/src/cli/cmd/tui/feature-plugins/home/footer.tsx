@@ -5,11 +5,18 @@ import { Global } from "@opencode-ai/core/global"
 
 const id = "internal:home-footer"
 
+function brandPath(value: string) {
+  return value
+    .replace(Global.Path.home, "~")
+    .replaceAll("\\", "/")
+    .replace(/\/packages\/opencode(?=\/|:|$)/g, "/packages/tryaksh")
+}
+
 function Directory(props: { api: TuiPluginApi }) {
   const theme = () => props.api.theme.current
   const dir = createMemo(() => {
     const dir = props.api.state.path.directory || process.cwd()
-    const out = dir.replace(Global.Path.home, "~")
+    const out = brandPath(dir)
     const branch = props.api.state.vcs?.branch
     if (branch) return out + ":" + branch
     return out
