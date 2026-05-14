@@ -6,25 +6,26 @@ Tryaksh CLI is a team-ready command-line coding assistant. The current agenda is
 
 ## Quick Start For Team Members
 
-Prerequisites:
+From source on Windows:
 
-- Bun `1.3.13` or newer in the `1.x` line
-- Git
-- At least one supported AI provider configured with an API key or auth login
-
-From source:
-
-```bash
+```powershell
 git clone https://github.com/tryaksh-innovations/tryaksh-cli.git
 cd tryaksh-cli
-bun install
-npm link
-tryaksh --help
+.\setup.ps1
+tryaksh
 ```
 
-After that, run `tryaksh` from any project:
+The setup script checks Node/npm, installs Bun if it is missing, installs project dependencies, links the `tryaksh` command, and verifies the CLI.
 
-```bash
+If PowerShell blocks local scripts, run this once from the repo root:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\setup.ps1
+```
+
+After setup, run `tryaksh` from any project:
+
+```powershell
 cd path/to/project
 tryaksh
 ```
@@ -32,6 +33,7 @@ tryaksh
 For development without linking:
 
 ```bash
+bun install
 bun run tryaksh --help
 ```
 
