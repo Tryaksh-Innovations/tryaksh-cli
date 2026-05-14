@@ -18,25 +18,24 @@ From source:
 git clone https://github.com/tryaksh-innovations/tryaksh-cli.git
 cd tryaksh-cli
 bun install
-bun run tryaksh --help
-```
-
-Recommended local setup:
-
-```bash
-cd packages/opencode
 npm link
 tryaksh --help
 ```
 
-Run inside any project after linking:
+After that, run `tryaksh` from any project:
 
 ```bash
 cd path/to/project
 tryaksh
 ```
 
-The linked `tryaksh` command falls back to the source entrypoint when no compiled release binary is installed, so it is usable during development.
+For development without linking:
+
+```bash
+bun run tryaksh --help
+```
+
+The root package exposes the `tryaksh` command, so team members do not need to enter internal package folders. The linked command falls back to the source entrypoint when no compiled release binary is installed, so it is usable during development.
 
 After pulling updates, fully restart `tryaksh` and start a fresh session with `/new` so the latest identity and branding prompts are loaded.
 
