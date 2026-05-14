@@ -8,9 +8,10 @@ import { fileURLToPath } from "url"
 
 const forwardedSignals = ["SIGINT", "SIGTERM", "SIGHUP"]
 
-function run(target, args = process.argv.slice(2)) {
+function run(target, args = process.argv.slice(2), options = {}) {
   const child = childProcess.spawn(target, args, {
     stdio: "inherit",
+    ...options,
   })
 
   child.on("error", (error) => {
@@ -50,9 +51,10 @@ const envPath = process.env.TRYAKSH_BIN_PATH || process.env.OPENCODE_BIN_PATH
 const __filename = fileURLToPath(import.meta.url)
 const scriptPath = fs.realpathSync(__filename)
 const scriptDir = path.dirname(scriptPath)
+const packageDir = path.resolve(scriptDir, "..")
 
 const cached = path.join(scriptDir, `.${appName}`)
-const sourceEntrypoint = path.join(scriptDir, "..", "src", "index.ts")
+const sourceEntrypoint = path.join(packageDir, "src", "index.ts")
 
 const platformMap = {
   darwin: "darwin",
@@ -193,7 +195,7 @@ const resolved = envPath || (fs.existsSync(cached) ? cached : findBinary(scriptD
 if (resolved) {
   run(resolved)
 } else if (fs.existsSync(sourceEntrypoint)) {
-  run("bun", ["run", "--conditions=browser", sourceEntrypoint, "--", ...process.argv.slice(2)])
+  run("bun", ["run", "--conditions=browser", "src/index.ts", ...process.argv.slice(2)], { cwd: packageDir })
 } else {
   console.error(
     "It seems that your package manager failed to install the right version of the Tryaksh CLI for your platform. You can try manually installing " +
