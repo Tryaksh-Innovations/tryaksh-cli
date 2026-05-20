@@ -6,7 +6,7 @@ Tryaksh CLI is a team-ready command-line coding assistant. The current agenda is
 
 ## Quick Start For Team Members
 
-From source on Windows:
+From source on Windows (PowerShell):
 
 ```powershell
 git clone https://github.com/tryaksh-innovations/tryaksh-cli.git
@@ -15,17 +15,26 @@ cd tryaksh-cli
 tryaksh
 ```
 
-The setup script checks Node/npm, installs Bun if it is missing, installs project dependencies, links the `tryaksh` command, and verifies the CLI.
-
 If PowerShell blocks local scripts, run this once from the repo root:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\setup.ps1
 ```
 
+From source on Ubuntu / Linux / macOS (bash or zsh):
+
+```bash
+git clone https://github.com/tryaksh-innovations/tryaksh-cli.git
+cd tryaksh-cli
+./setup.sh
+tryaksh
+```
+
+Both setup scripts check Node/npm, install Bun if it is missing, install project dependencies, link the `tryaksh` command, and verify the CLI. On Ubuntu the script uses `apt` (via NodeSource) when Node.js is absent; on Fedora it uses `dnf`, on Arch `pacman`, on openSUSE `zypper`, on macOS `brew`. If `npm link` fails because npm's global prefix is root-owned, either re-run with `sudo` or configure npm to use a user-owned prefix (`npm config set prefix ~/.npm-global` and add `~/.npm-global/bin` to your `PATH`).
+
 After setup, run `tryaksh` from any project:
 
-```powershell
+```bash
 cd path/to/project
 tryaksh
 ```
