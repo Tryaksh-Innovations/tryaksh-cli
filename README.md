@@ -34,6 +34,12 @@ Both setup scripts check Node/npm + the system prereqs (`curl`, `unzip`, `git`, 
 
 On Ubuntu the script uses `apt` (via NodeSource) when Node.js is absent; on Fedora it uses `dnf`, on Arch `pacman`, on openSUSE `zypper`, on macOS `brew`. **The Linux script may prompt once for your sudo password** to install `unzip` and Node.js if they are missing. If npm's global prefix is root-owned (system Node), the script automatically reconfigures npm to use `~/.npm-global` so `npm link` does not need sudo, and appends the new path to your shell rc file.
 
+**macOS prerequisites** — the script will check for and guide you through these if they are missing:
+
+- **Xcode Command Line Tools** (required by `tree-sitter-powershell` and other native dependencies). The script invokes `xcode-select --install`, which opens a GUI dialog. Click "Install", wait 5-15 minutes, then re-run `./setup.sh`.
+- **Node 20 LTS or newer.** Older Node (the EOL 19.x line in particular) fails `node-gyp` native builds. The script enforces a minimum of Node 20 and prints the exact `brew install node@22` command if your current Node is too old.
+- **Homebrew** for everything else (`curl`, `git`, `python3`). Install Homebrew from https://brew.sh first if you do not have it.
+
 After setup, run `tryaksh` from any project:
 
 ```bash

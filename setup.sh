@@ -92,6 +92,91 @@ read_pinned_bun_version() {
   echo "$raw" | sed -E 's/.*"bun@([0-9]+\.[0-9]+\.[0-9]+)".*/\1/' | head -1
 }
 
+is_macos() { [[ "$(uname -s)" == "Darwin" ]]; }
+
+# macOS only: ensure Xcode Command Line Tools are installed and the active
+# developer path actually points at a usable toolchain. tree-sitter-* and
+# other native postinstalls fail with "xcrun: invalid active developer path"
+# when CLT is missing or stale.
+ensure_xcode_clt() {
+  is_macos || return 0
+
+  local active_path=""
+  active_path=$(xcode-select -p 2>/dev/null || true)
+
+  if [[ -n "$active_path" && -x "$active_path/usr/bin/xcrun" ]] && have clang && have make; then
+    ok "Xcode Command Line Tools are installed ($active_path)"
+    return
+  fi
+
+  warn "Xcode Command Line Tools are missing or broken (path: '${active_path:-unset}')"
+  step "Triggering Xcode Command Line Tools installer"
+
+  if ! xcode-select --install 2>&1 | grep -qiE "install requested|already installed"; then
+    warn "Could not invoke xcode-select --install automatically."
+  fi
+
+  cat <<EOF
+
+A graphical dialog should appear titled "The command-line developer tools require an installation". Click "Install" and wait for it to finish (typically 5-15 minutes).
+
+When the installer completes, re-run:
+  ./setup.sh
+
+If the dialog did not appear:
+  sudo rm -rf /Library/Developer/CommandLineTools
+  xcode-select --install
+
+EOF
+  fail "Re-run ./setup.sh after Xcode Command Line Tools finish installing."
+}
+
+# Compare the running Node major version against MIN_NODE_MAJOR. Older Node
+# (especially EOL releases like 19.x) fails native-builds via node-gyp@12.
+MIN_NODE_MAJOR=20
+require_node_version() {
+  have node || return 0
+  local ver major
+  ver=$(node --version 2>/dev/null | sed 's/^v//')
+  major=$(echo "$ver" | cut -d. -f1)
+  if [[ -z "$major" || ! "$major" =~ ^[0-9]+$ ]]; then
+    warn "Could not parse Node version '$ver' — continuing."
+    return 0
+  fi
+  if (( major >= MIN_NODE_MAJOR )); then
+    return 0
+  fi
+
+  warn "Node $ver is older than the minimum required ($MIN_NODE_MAJOR.x LTS)."
+  if is_macos && have brew; then
+    cat <<EOF
+
+To upgrade Node on macOS via Homebrew:
+  brew install node@22
+  brew link --force --overwrite node@22
+  node --version
+
+Then re-run: ./setup.sh
+EOF
+  elif have apt-get; then
+    cat <<EOF
+
+To upgrade Node on Ubuntu/Debian via NodeSource:
+  curl -fsSL https://deb.nodesource.com/setup_lts.x | sudo -E bash -
+  sudo apt-get install -y nodejs
+  node --version
+
+Then re-run: ./setup.sh
+EOF
+  else
+    cat <<EOF
+
+Install Node $MIN_NODE_MAJOR LTS or higher (https://nodejs.org) and re-run ./setup.sh.
+EOF
+  fi
+  fail "Node $ver is below the required minimum ($MIN_NODE_MAJOR.x)."
+}
+
 ensure_system_prereqs() {
   local pm; pm=$(detect_pkg_manager)
   local need=()
@@ -126,7 +211,7 @@ ensure_system_prereqs() {
       sudo_cmd zypper install -y curl unzip git make gcc gcc-c++ python3
       ;;
     brew)
-      brew install curl unzip git python3
+      brew install curl unzip git python@3.12 || brew install curl unzip git python3
       ;;
     *)
       fail "No supported package manager. Install these manually and re-run: ${need[*]}"
@@ -156,7 +241,10 @@ ensure_node_and_npm() {
     dnf)    sudo_cmd dnf install -y nodejs npm ;;
     pacman) sudo_cmd pacman -Sy --noconfirm nodejs npm ;;
     zypper) sudo_cmd zypper install -y nodejs npm ;;
-    brew)   brew install node ;;
+    brew)
+      brew install node@22
+      brew link --force --overwrite node@22 || true
+      ;;
     *)      fail "No supported package manager found. Install Node.js LTS manually (https://nodejs.org), then re-run ./setup.sh." ;;
   esac
 
@@ -323,11 +411,19 @@ EOF
 printf "${WHITE}Tryaksh CLI setup${NC}\n"
 assert_repo_root
 
+if is_macos; then
+  step "Checking Xcode Command Line Tools (macOS)"
+  ensure_xcode_clt
+fi
+
 step "Checking system prerequisites"
 ensure_system_prereqs
 
 step "Checking Node and npm"
 ensure_node_and_npm
+
+step "Verifying Node version"
+require_node_version
 
 step "Checking Bun (pinned to package.json packageManager)"
 ensure_bun
