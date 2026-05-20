@@ -1,26 +1,28 @@
 #!/usr/bin/env bash
-# Tryaksh CLI dev/source setup for Linux & macOS.
-# Mirrors setup.ps1.
+# Tryaksh CLI dev/source setup for Linux & macOS. Mirrors setup.ps1.
 #
 # Usage:
-#   ./setup.sh                 # install Bun if missing, bun install, npm link
-#   ./setup.sh --skip-bun      # do not auto-install Bun
+#   ./setup.sh                 # full setup: prereqs, pinned bun, bun install, npm link
+#   ./setup.sh --skip-bun      # do not auto-install Bun (use existing on PATH)
 #   ./setup.sh --skip-link     # skip `npm link` (run from source via `bun run tryaksh`)
 #   ./setup.sh --show-welcome  # show the welcome banner again
+#   ./setup.sh --no-clean      # skip cleaning node_modules even if verify fails
 
 set -euo pipefail
 
 SKIP_BUN_INSTALL=false
 SKIP_LINK=false
 SHOW_WELCOME_AGAIN=false
+NO_CLEAN=false
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --skip-bun|--skip-bun-install) SKIP_BUN_INSTALL=true; shift ;;
     --skip-link)                   SKIP_LINK=true; shift ;;
     --show-welcome|--show-welcome-again) SHOW_WELCOME_AGAIN=true; shift ;;
+    --no-clean)                    NO_CLEAN=true; shift ;;
     -h|--help)
-      sed -n '2,11p' "$0"
+      sed -n '2,12p' "$0"
       exit 0
       ;;
     *)
@@ -46,9 +48,20 @@ fail()  { printf "${RED}ERROR  %s${NC}\n" "$1" >&2; exit 1; }
 
 have() { command -v "$1" >/dev/null 2>&1; }
 
+sudo_cmd() {
+  if [[ $EUID -eq 0 ]]; then
+    "$@"
+  elif have sudo; then
+    sudo "$@"
+  else
+    fail "Need root or sudo for: $*"
+  fi
+}
+
 add_common_path_entries() {
   local entries=(
     "$HOME/.bun/bin"
+    "$HOME/.npm-global/bin"
     "$HOME/.local/bin"
     "/usr/local/bin"
   )
@@ -71,6 +84,57 @@ detect_pkg_manager() {
   fi
 }
 
+# Read the pinned Bun version from package.json packageManager field.
+read_pinned_bun_version() {
+  # Looks for: "packageManager": "bun@X.Y.Z"
+  local raw
+  raw=$(grep -E '"packageManager"' package.json 2>/dev/null | head -1)
+  echo "$raw" | sed -E 's/.*"bun@([0-9]+\.[0-9]+\.[0-9]+)".*/\1/' | head -1
+}
+
+ensure_system_prereqs() {
+  local pm; pm=$(detect_pkg_manager)
+  local need=()
+
+  have curl  || need+=(curl)
+  have unzip || need+=(unzip)
+  have git   || need+=(git)
+  # Build tools so optional node-pty / native deps can compile if needed.
+  have make  || need+=(make)
+  have gcc   || need+=(gcc)
+  have python3 || need+=(python3)
+
+  if [[ ${#need[@]} -eq 0 ]]; then
+    ok "System prerequisites are present"
+    return
+  fi
+
+  step "Installing system prerequisites: ${need[*]}"
+  case "$pm" in
+    apt)
+      sudo_cmd apt-get update -y
+      # build-essential pulls in make+gcc; install both groups regardless.
+      sudo_cmd apt-get install -y curl unzip git build-essential python3
+      ;;
+    dnf)
+      sudo_cmd dnf install -y curl unzip git make gcc gcc-c++ python3
+      ;;
+    pacman)
+      sudo_cmd pacman -Sy --noconfirm curl unzip git base-devel python
+      ;;
+    zypper)
+      sudo_cmd zypper install -y curl unzip git make gcc gcc-c++ python3
+      ;;
+    brew)
+      brew install curl unzip git python3
+      ;;
+    *)
+      fail "No supported package manager. Install these manually and re-run: ${need[*]}"
+      ;;
+  esac
+  ok "System prerequisites installed"
+}
+
 ensure_node_and_npm() {
   add_common_path_entries
 
@@ -84,33 +148,16 @@ ensure_node_and_npm() {
   case "$pm" in
     apt)
       step "Installing Node.js LTS via NodeSource (apt)"
-      if [[ $EUID -ne 0 ]] && ! have sudo; then
-        fail "Need root or sudo to install Node.js. Install Node.js LTS manually, then re-run ./setup.sh."
-      fi
-      local SUDO=""; [[ $EUID -ne 0 ]] && SUDO="sudo"
-      if ! curl -fsSL https://deb.nodesource.com/setup_lts.x | $SUDO -E bash -; then
+      if ! curl -fsSL https://deb.nodesource.com/setup_lts.x | sudo_cmd -E bash -; then
         warn "NodeSource setup failed — falling back to apt's nodejs package."
       fi
-      $SUDO apt-get install -y nodejs
+      sudo_cmd apt-get install -y nodejs
       ;;
-    dnf)
-      [[ $EUID -ne 0 ]] && local SUDO="sudo" || local SUDO=""
-      $SUDO dnf install -y nodejs npm
-      ;;
-    pacman)
-      [[ $EUID -ne 0 ]] && local SUDO="sudo" || local SUDO=""
-      $SUDO pacman -Sy --noconfirm nodejs npm
-      ;;
-    zypper)
-      [[ $EUID -ne 0 ]] && local SUDO="sudo" || local SUDO=""
-      $SUDO zypper install -y nodejs npm
-      ;;
-    brew)
-      brew install node
-      ;;
-    *)
-      fail "No supported package manager found. Install Node.js LTS manually (https://nodejs.org), then re-run ./setup.sh."
-      ;;
+    dnf)    sudo_cmd dnf install -y nodejs npm ;;
+    pacman) sudo_cmd pacman -Sy --noconfirm nodejs npm ;;
+    zypper) sudo_cmd zypper install -y nodejs npm ;;
+    brew)   brew install node ;;
+    *)      fail "No supported package manager found. Install Node.js LTS manually (https://nodejs.org), then re-run ./setup.sh." ;;
   esac
 
   add_common_path_entries
@@ -118,33 +165,122 @@ ensure_node_and_npm() {
   ok "Node and npm are available ($(node --version), npm $(npm --version))"
 }
 
+# Install Bun pinned to the version in package.json#packageManager.
+# If the running Bun is a different patch version we re-install the pinned one,
+# because the lockfile is built against that exact Bun and Bun's isolated linker
+# is sensitive to minor version drift.
 ensure_bun() {
   add_common_path_entries
 
-  if have bun; then
-    ok "Bun is available ($(bun --version))"
+  local pinned; pinned=$(read_pinned_bun_version)
+  if [[ -z "$pinned" ]]; then
+    warn "Could not read packageManager from package.json — accepting any Bun version."
+  fi
+
+  local current=""
+  if have bun; then current=$(bun --version 2>/dev/null | tr -d '[:space:]' || true); fi
+
+  if [[ -n "$current" && ( -z "$pinned" || "$current" == "$pinned" ) ]]; then
+    ok "Bun is available ($current)"
     return
   fi
 
   if [[ "$SKIP_BUN_INSTALL" == "true" ]]; then
-    fail "Bun was not found and --skip-bun was passed."
+    if [[ -z "$current" ]]; then
+      fail "Bun was not found and --skip-bun was passed."
+    fi
+    warn "Bun $current does not match pinned $pinned but --skip-bun was passed; continuing."
+    return
   fi
 
-  step "Installing Bun"
-  curl -fsSL https://bun.sh/install | bash
+  if [[ -n "$current" ]]; then
+    warn "Bun $current is installed but package.json pins $pinned — installing $pinned."
+  fi
+
+  step "Installing Bun $pinned"
+  if [[ -n "$pinned" ]]; then
+    if ! curl -fsSL "https://bun.sh/install" | bash -s "bun-v$pinned"; then
+      warn "Pinned Bun install failed — falling back to latest."
+      curl -fsSL https://bun.sh/install | bash
+    fi
+  else
+    curl -fsSL https://bun.sh/install | bash
+  fi
   add_common_path_entries
 
   if ! have bun; then
     fail "Bun installed but is not on PATH yet. Open a new shell (or 'source ~/.bashrc') and re-run ./setup.sh."
   fi
-
   ok "Bun is available ($(bun --version))"
+}
+
+# Make sure `npm link` can write to npm's prefix without sudo.
+# If the prefix is owned by root we redirect npm to ~/.npm-global, which is the
+# convention recommended by npm docs for non-root users.
+ensure_npm_user_prefix() {
+  local prefix; prefix=$(npm config get prefix 2>/dev/null || echo "")
+  if [[ -z "$prefix" ]]; then
+    return
+  fi
+  if [[ -w "$prefix" ]]; then
+    return
+  fi
+  if [[ -w "$prefix/bin" ]]; then
+    return
+  fi
+
+  local user_prefix="$HOME/.npm-global"
+  step "npm prefix '$prefix' is not user-writable — switching npm to $user_prefix"
+  mkdir -p "$user_prefix/bin"
+  npm config set prefix "$user_prefix"
+  add_common_path_entries
+
+  local profile=""
+  case "$(basename "${SHELL:-/bin/bash}")" in
+    zsh)  profile="$HOME/.zshrc" ;;
+    bash) profile="$HOME/.bashrc" ;;
+    fish) profile="$HOME/.config/fish/config.fish" ;;
+    *)    profile="$HOME/.profile" ;;
+  esac
+  if [[ -n "$profile" && -f "$profile" ]] && ! grep -q ".npm-global/bin" "$profile" 2>/dev/null; then
+    if [[ "$profile" == *config.fish ]]; then
+      printf '\n# tryaksh: npm user prefix\nfish_add_path %s/bin\n' "$user_prefix" >> "$profile"
+    else
+      printf '\n# tryaksh: npm user prefix\nexport PATH="%s/bin:$PATH"\n' "$user_prefix" >> "$profile"
+    fi
+    ok "Appended $user_prefix/bin to PATH in $profile (restart shell to make it persistent)"
+  fi
 }
 
 assert_repo_root() {
   if [[ ! -f "./package.json" || ! -d "./packages/opencode" ]]; then
     fail "Run this script from the tryaksh-cli repository root."
   fi
+}
+
+# Verify that bun's install left the dep graph in a state where the CLI can
+# actually start. Returns 0 if healthy, non-zero if a clean reinstall is needed.
+verify_install() {
+  # Quick structural check: @babel/types' sub-dep must be linkable.
+  local babel_types_dir
+  babel_types_dir=$(ls -d node_modules/.bun/@babel+types@*/node_modules/@babel/helper-validator-identifier 2>/dev/null | head -1 || true)
+  if [[ -z "$babel_types_dir" || ! -d "$babel_types_dir" ]]; then
+    # Hoisted layouts won't have .bun/ — accept node_modules/@babel/helper-validator-identifier too.
+    if [[ ! -d "node_modules/@babel/helper-validator-identifier" ]]; then
+      warn "Sub-dep @babel/helper-validator-identifier is missing in node_modules"
+      return 1
+    fi
+  fi
+
+  # Functional check: bun must be able to start the CLI source.
+  local out
+  if ! out=$(timeout 45 bun run --cwd packages/opencode --conditions=browser src/index.ts --help 2>&1); then
+    warn "bun run tryaksh --help failed during verification"
+    echo "--- last 20 lines ---" >&2
+    echo "$out" | tail -20 >&2
+    return 1
+  fi
+  return 0
 }
 
 show_first_run_welcome() {
@@ -187,23 +323,54 @@ EOF
 printf "${WHITE}Tryaksh CLI setup${NC}\n"
 assert_repo_root
 
-step "Checking required tools"
+step "Checking system prerequisites"
+ensure_system_prereqs
+
+step "Checking Node and npm"
 ensure_node_and_npm
+
+step "Checking Bun (pinned to package.json packageManager)"
 ensure_bun
+
+step "Configuring npm prefix"
+ensure_npm_user_prefix
 
 step "Installing project dependencies"
 bun install
 
+step "Verifying dependency graph and CLI entrypoint"
+if ! verify_install; then
+  if [[ "$NO_CLEAN" == "true" ]]; then
+    fail "verify failed and --no-clean was passed."
+  fi
+  warn "Verify failed — wiping node_modules and reinstalling"
+  rm -rf node_modules
+  bun install
+  if ! verify_install; then
+    fail "Verify still failing after clean reinstall. Inspect the output above and rerun ./setup.sh --no-clean for diagnostics."
+  fi
+fi
+ok "Dependency graph is healthy and tryaksh source starts correctly"
+
 if [[ "$SKIP_LINK" != "true" ]]; then
   step "Linking the tryaksh command"
-  # `npm link --force` works without sudo when npm's prefix is user-owned (default with nvm/Volta/bun-installed Node).
-  # On a system-wide Node, `sudo npm link` may be required — let npm fail naturally and the user can re-run with sudo.
-  npm link --force
+  if ! npm link --force; then
+    fail "npm link failed. Try: npm config set prefix ~/.npm-global && ./setup.sh"
+  fi
+  add_common_path_entries
 fi
 
-step "Verifying Tryaksh CLI"
-if ! tryaksh --version; then
-  fail "tryaksh verification failed. If npm link wrote to a global prefix not on your PATH, run 'npm config get prefix' and add '\$(npm config get prefix)/bin' to PATH."
+step "Verifying global tryaksh command"
+if have tryaksh; then
+  if ! timeout 15 tryaksh --version >/dev/null 2>&1; then
+    warn "tryaksh is on PATH but exited non-zero on --version. The source-mode CLI still runs via 'bun run tryaksh'."
+  else
+    ok "tryaksh --version succeeded ($(tryaksh --version 2>/dev/null))"
+  fi
+else
+  if [[ "$SKIP_LINK" != "true" ]]; then
+    warn "tryaksh not found on PATH. Restart your shell, or add \$(npm config get prefix)/bin to PATH."
+  fi
 fi
 
 show_first_run_welcome

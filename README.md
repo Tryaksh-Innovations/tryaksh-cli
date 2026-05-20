@@ -30,7 +30,9 @@ cd tryaksh-cli
 tryaksh
 ```
 
-Both setup scripts check Node/npm, install Bun if it is missing, install project dependencies, link the `tryaksh` command, and verify the CLI. On Ubuntu the script uses `apt` (via NodeSource) when Node.js is absent; on Fedora it uses `dnf`, on Arch `pacman`, on openSUSE `zypper`, on macOS `brew`. If `npm link` fails because npm's global prefix is root-owned, either re-run with `sudo` or configure npm to use a user-owned prefix (`npm config set prefix ~/.npm-global` and add `~/.npm-global/bin` to your `PATH`).
+Both setup scripts check Node/npm + the system prereqs (`curl`, `unzip`, `git`, `make`, `gcc`, `python3`), install Bun pinned to the exact version in `package.json#packageManager`, run `bun install`, verify the dependency graph by running `bun run tryaksh --help`, and link the global `tryaksh` command. If anything fails verification, the script wipes `node_modules` and reinstalls once before giving up.
+
+On Ubuntu the script uses `apt` (via NodeSource) when Node.js is absent; on Fedora it uses `dnf`, on Arch `pacman`, on openSUSE `zypper`, on macOS `brew`. **The Linux script may prompt once for your sudo password** to install `unzip` and Node.js if they are missing. If npm's global prefix is root-owned (system Node), the script automatically reconfigures npm to use `~/.npm-global` so `npm link` does not need sudo, and appends the new path to your shell rc file.
 
 After setup, run `tryaksh` from any project:
 
